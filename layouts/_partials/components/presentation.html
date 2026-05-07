@@ -1,0 +1,302 @@
+{{/* Presentation mode overlay — injected once per docs/single page. */}}
+
+<div id="pres-overlay" class="pres-overlay" hidden tabindex="-1"
+     role="dialog" aria-modal="true" aria-label="Presentation mode">
+
+  {{/* ── Toolbar ─────────────────────────────────────────────────── */}}
+  <div class="pres-toolbar">
+    <div class="pres-section" id="pres-section"></div>
+    <div class="pres-toolbar-right">
+      <span class="pres-counter" id="pres-counter" aria-live="polite"></span>
+
+      {{/* Fullscreen toggle */}}
+      <button class="pres-icon-btn" id="pres-fs"
+              title="Toggle fullscreen (F)" aria-label="Toggle fullscreen">
+        <svg class="pres-fs-expand" xmlns="http://www.w3.org/2000/svg"
+             width="15" height="15" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3"/>
+          <path d="M21 8V5a2 2 0 0 0-2-2h-3"/>
+          <path d="M3 16v3a2 2 0 0 0 2 2h3"/>
+          <path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+        </svg>
+        <svg class="pres-fs-compress" xmlns="http://www.w3.org/2000/svg"
+             width="15" height="15" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true" hidden>
+          <path d="M8 3v3a2 2 0 0 1-2 2H3"/>
+          <path d="M21 8h-3a2 2 0 0 1-2-2V3"/>
+          <path d="M3 16h3a2 2 0 0 1 2 2v3"/>
+          <path d="M16 21v-3a2 2 0 0 1 2-2h3"/>
+        </svg>
+      </button>
+
+      {{/* Close */}}
+      <button class="pres-icon-btn" id="pres-close"
+              title="Exit (Esc)" aria-label="Exit presentation">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15"
+             viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  {{/* ── Slide viewport ──────────────────────────────────────────── */}}
+  <div class="pres-viewport" id="pres-viewport">
+    <div class="pres-slide" id="pres-slide"></div>
+  </div>
+
+  {{/* ── Navigation bar ──────────────────────────────────────────── */}}
+  <div class="pres-nav">
+    <button class="pres-nav-btn" id="pres-prev" aria-label="Previous slide" disabled>
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+           viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+           aria-hidden="true">
+        <path d="M15 18 9 12l6-6"/>
+      </svg>
+    </button>
+    <div class="pres-progress" role="progressbar"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="pres-progress-fill" id="pres-fill"></div>
+    </div>
+    <button class="pres-nav-btn" id="pres-next" aria-label="Next slide">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+           viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+           aria-hidden="true">
+        <path d="M9 18l6-6-6-6"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="pres-hint" aria-hidden="true">← → navigate · F fullscreen · Esc exit</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── DOM refs ─────────────────────────────────────────────────────────── */
+  var overlay   = document.getElementById('pres-overlay');
+  var slideEl   = document.getElementById('pres-slide');
+  var viewport  = document.getElementById('pres-viewport');
+  var sectionEl = document.getElementById('pres-section');
+  var counterEl = document.getElementById('pres-counter');
+  var fillEl    = document.getElementById('pres-fill');
+  var btnPrev   = document.getElementById('pres-prev');
+  var btnNext   = document.getElementById('pres-next');
+  var btnClose  = document.getElementById('pres-close');
+  var btnFS     = document.getElementById('pres-fs');
+  var btnOpen   = document.getElementById('pres-open');
+
+  /* ── State ────────────────────────────────────────────────────────────── */
+  var slides = [];
+  var idx    = 0;
+
+  /* ── Slide-weight table ───────────────────────────────────────────────── */
+  // Each block type has a cost. A slide is split when accumulated cost would
+  // exceed THRESHOLD, keeping content digestible for presentation.
+  var TAG_WEIGHT = {
+    p: 3, h3: 2, h4: 1,
+    ul: 3, ol: 3, li: 0,   // li counted through parent
+    pre: 6,                 // code blocks are visually heavy
+    table: 5,
+    blockquote: 3,
+    figure: 4, img: 4,
+    hr: 0,
+  };
+  var THRESHOLD = 12;
+
+  function weightOf(el) {
+    // KaTeX display math (wrapped in a <p> or sibling span) is visually heavy
+    if (el.querySelector && el.querySelector('.katex-display')) return 4;
+    return TAG_WEIGHT[el.tagName.toLowerCase()] != null
+      ? TAG_WEIGHT[el.tagName.toLowerCase()]
+      : 2;
+  }
+
+  /* ── Build slide list ─────────────────────────────────────────────────── */
+  function buildSlides() {
+    var content = document.querySelector('.brain-single-content .content');
+    if (!content) return [];
+
+    var result  = [];
+    var slide   = null;
+    var cost    = 0;
+    var section = '';   // current h2 label
+
+    function flush() {
+      if (slide && (slide.heading || slide.blocks.length)) result.push(slide);
+    }
+
+    function startSlide(headingNode, sec, continued) {
+      flush();
+      slide = {
+        heading:   headingNode,   // cloned h2 element or null
+        section:   sec,
+        blocks:    [],
+        continued: continued,
+      };
+      cost = headingNode ? 2 : 0;
+    }
+
+    var children = Array.from(content.children);
+    for (var i = 0; i < children.length; i++) {
+      var el  = children[i];
+      var tag = el.tagName.toLowerCase();
+
+      // Skip the page-header div (title, tags, actions)
+      if (el.classList.contains('brain-page-header')) continue;
+      // Skip h1 — already in the page header
+      if (tag === 'h1') continue;
+
+      if (tag === 'h2') {
+        section = el.textContent.trim();
+        startSlide(el.cloneNode(true), section, false);
+        continue;
+      }
+
+      // Ensure we have an open slide (intro content before first h2)
+      if (!slide) startSlide(null, '', false);
+
+      var w = weightOf(el);
+
+      // If adding this block would overflow, split here — but only if the
+      // current slide already has some content (never split immediately).
+      if (cost + w > THRESHOLD && slide.blocks.length > 0) {
+        startSlide(null, section, true);
+      }
+
+      slide.blocks.push(el.cloneNode(true));
+      cost += w;
+    }
+    flush();
+
+    // Drop empty slides (edge case: h2 with no body before next h2)
+    return result.filter(function (s) {
+      return s.heading || s.blocks.length > 0;
+    });
+  }
+
+  /* ── Render one slide ─────────────────────────────────────────────────── */
+  function render(i) {
+    var s = slides[i];
+    if (!s) return;
+
+    slideEl.innerHTML = '';
+
+    if (s.heading) {
+      // Main section heading
+      var h = s.heading.cloneNode(true);
+      h.style.marginTop = '0';
+      slideEl.appendChild(h);
+    } else if (s.continued && s.section) {
+      // Continuation pill — reminds the reader which section they're in
+      var pill = document.createElement('div');
+      pill.className   = 'pres-pill';
+      pill.textContent = s.section;
+      slideEl.appendChild(pill);
+    }
+
+    for (var j = 0; j < s.blocks.length; j++) {
+      slideEl.appendChild(s.blocks[j].cloneNode(true));
+    }
+
+    // Update toolbar & nav
+    var total = slides.length;
+    var pct   = ((i + 1) / total) * 100;
+
+    counterEl.textContent         = (i + 1) + ' / ' + total;
+    sectionEl.textContent         = s.section || '';
+    fillEl.style.width            = pct + '%';
+    btnPrev.disabled              = (i === 0);
+    btnNext.disabled              = (i === total - 1);
+    viewport.scrollTop            = 0;
+
+    // Update ARIA on progress bar
+    var pb = document.querySelector('.pres-progress');
+    if (pb) pb.setAttribute('aria-valuenow', Math.round(pct));
+
+    // Restart the fade-in animation
+    slideEl.classList.remove('pres-slide--animate');
+    void slideEl.offsetWidth;   // reflow
+    slideEl.classList.add('pres-slide--animate');
+  }
+
+  /* ── Navigate ─────────────────────────────────────────────────────────── */
+  function go(delta) {
+    var next = idx + delta;
+    if (next < 0 || next >= slides.length) return;
+    idx = next;
+    render(idx);
+  }
+
+  /* ── Open ─────────────────────────────────────────────────────────────── */
+  function open() {
+    slides = buildSlides();
+    if (!slides.length) return;
+    idx = 0;
+    overlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+    overlay.focus();
+    render(0);
+  }
+
+  /* ── Close ────────────────────────────────────────────────────────────── */
+  function close() {
+    overlay.hidden = true;
+    document.body.style.overflow = '';
+    if (document.fullscreenElement) document.exitFullscreen();
+  }
+
+  /* ── Fullscreen ───────────────────────────────────────────────────────── */
+  function toggleFS() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      overlay.requestFullscreen && overlay.requestFullscreen();
+    }
+  }
+
+  document.addEventListener('fullscreenchange', function () {
+    var isFS = !!document.fullscreenElement;
+    var expand   = btnFS.querySelector('.pres-fs-expand');
+    var compress = btnFS.querySelector('.pres-fs-compress');
+    if (expand)   expand.hidden   = isFS;
+    if (compress) compress.hidden = !isFS;
+    btnFS.title = isFS ? 'Exit fullscreen (F)' : 'Toggle fullscreen (F)';
+  });
+
+  /* ── Events ───────────────────────────────────────────────────────────── */
+  if (btnOpen) btnOpen.addEventListener('click', open);
+  btnPrev.addEventListener('click', function () { go(-1); });
+  btnNext.addEventListener('click', function () { go(+1); });
+  btnClose.addEventListener('click', close);
+  btnFS.addEventListener('click', toggleFS);
+
+  overlay.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp'   || e.key === 'k') { go(-1); e.preventDefault(); return; }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'j') { go(+1); e.preventDefault(); return; }
+    if (e.key === ' ')       { go(e.shiftKey ? -1 : +1); e.preventDefault(); return; }
+    if (e.key === 'Escape')  { close(); return; }
+    if (e.key === 'f' || e.key === 'F') { toggleFS(); }
+  });
+
+  /* Touch / swipe */
+  var touchStartX = 0;
+  overlay.addEventListener('touchstart', function (e) {
+    touchStartX = e.touches[0].clientX;
+  }, { passive: true });
+  overlay.addEventListener('touchend', function (e) {
+    var dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) go(dx < 0 ? +1 : -1);
+  }, { passive: true });
+
+})();
+</script>

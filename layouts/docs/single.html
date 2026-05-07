@@ -10,6 +10,19 @@
           <div class="brain-page-header__actions">
             {{ partial "components/page-actions.html" . }}
             {{ partial "components/graph-link.html" . }}
+            <button id="pres-open" type="button"
+                    class="brain-page-action brain-page-action--present"
+                    title="Present this page"
+                    aria-label="Enter presentation mode">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                   viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="1.75" stroke-linecap="round"
+                   stroke-linejoin="round" aria-hidden="true">
+                <rect x="2" y="3" width="20" height="14" rx="1.5"/>
+                <path d="M10 7.5l5 3-5 3v-6z" fill="currentColor" stroke="none"/>
+                <path d="M9 21h6M12 17v4"/>
+              </svg>
+            </button>
           </div>
         </div>
         {{ with .Description }}<p class="brain-page-header__desc">{{ . }}</p>{{ end }}
@@ -33,4 +46,5 @@
     {{ partial "components/comments.html" . }}
   </main>
 </div>
+{{ partial "components/presentation.html" . }}
 {{ end }}

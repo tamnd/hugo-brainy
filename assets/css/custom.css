@@ -1904,3 +1904,228 @@ body {
   .cal-body { grid-template-columns: 16rem 1fr; gap: 0 2rem; }
   .cal-entry__meta { font-size: 0.6875rem; }
 }
+
+/* ===== Presentation mode ================================================== */
+
+/* Present button in page header — same shape as other brain-page-action btns */
+.brain-page-action--present { }
+
+/* ── Overlay shell ────────────────────────────────────────────────────────── */
+
+.pres-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: var(--bg);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  outline: none;
+  font-family: var(--font-sans);
+}
+
+.pres-overlay[hidden] { display: none; }
+
+/* ── Toolbar ──────────────────────────────────────────────────────────────── */
+
+.pres-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 1.25rem;
+  height: 2.875rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.pres-section {
+  font-size: 0.8125rem;
+  color: var(--muted-fg);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.pres-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.pres-counter {
+  font-size: 0.8125rem;
+  color: var(--muted-fg);
+  min-width: 3.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.pres-icon-btn {
+  width: 1.875rem;
+  height: 1.875rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  cursor: pointer;
+  transition: background 100ms, border-color 100ms;
+  flex-shrink: 0;
+}
+
+.pres-icon-btn:hover {
+  background: var(--muted);
+  border-color: var(--border-strong);
+}
+
+/* ── Slide viewport ───────────────────────────────────────────────────────── */
+
+.pres-viewport {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  padding: 2.75rem 2rem 2rem;
+  scroll-behavior: smooth;
+}
+
+.pres-slide {
+  width: 100%;
+  max-width: 52rem;
+}
+
+/* Fade-in when slide changes */
+.pres-slide--animate {
+  animation: pres-in 160ms ease;
+}
+
+@keyframes pres-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* Section heading on a fresh slide */
+.pres-slide > h2:first-child,
+.pres-slide > h3:first-child {
+  margin-top: 0;
+}
+
+/* Readable font scale for projection */
+.pres-slide > h2:first-child {
+  font-size: clamp(1.375rem, 3.5vw, 2rem);
+  letter-spacing: -0.025em;
+  margin-bottom: 1.25rem;
+}
+
+.pres-slide > p,
+.pres-slide > ul,
+.pres-slide > ol {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+}
+
+.pres-slide pre {
+  font-size: 0.9375rem;
+}
+
+.pres-slide table {
+  width: 100%;
+}
+
+/* Continuation context pill */
+.pres-pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: var(--muted-fg);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.1875rem 0.625rem;
+  margin-bottom: 1.25rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* ── Navigation bar ───────────────────────────────────────────────────────── */
+
+.pres-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.pres-nav-btn {
+  width: 2.125rem;
+  height: 2.125rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--fg);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 100ms, border-color 100ms, opacity 100ms;
+}
+
+.pres-nav-btn:hover:not(:disabled) {
+  background: var(--muted);
+  border-color: var(--border-strong);
+}
+
+.pres-nav-btn:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.pres-progress {
+  flex: 1;
+  height: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.pres-progress-fill {
+  height: 100%;
+  background: var(--fg);
+  border-radius: 1px;
+  transition: width 200ms ease;
+  width: 0%;
+}
+
+/* ── Keyboard hint ────────────────────────────────────────────────────────── */
+
+.pres-hint {
+  text-align: center;
+  font-size: 0.6875rem;
+  letter-spacing: 0.03em;
+  color: var(--muted-fg);
+  padding: 0.25rem 1rem 0.5rem;
+  flex-shrink: 0;
+}
+
+/* ── Responsive adjustments ───────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .pres-hint      { display: none; }
+  .pres-viewport  { padding: 1.5rem 1rem; }
+  .pres-toolbar   { padding: 0 1rem; }
+  .pres-nav       { padding: 0.625rem 1rem; gap: 0.75rem; }
+  .pres-slide > p,
+  .pres-slide > ul,
+  .pres-slide > ol { font-size: 1rem; }
+}
