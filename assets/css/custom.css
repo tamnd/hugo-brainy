@@ -1907,10 +1907,7 @@ body {
 
 /* ===== Presentation mode ================================================== */
 
-/* Present button in page header — same shape as other brain-page-action btns */
-.brain-page-action--present { }
-
-/* ── Overlay shell ────────────────────────────────────────────────────────── */
+/* ── Overlay ──────────────────────────────────────────────────────────────── */
 
 .pres-overlay {
   position: fixed;
@@ -1927,64 +1924,70 @@ body {
 
 .pres-overlay[hidden] { display: none; }
 
-/* ── Toolbar ──────────────────────────────────────────────────────────────── */
+/* ── 2 px progress line at very top ──────────────────────────────────────── */
 
-.pres-toolbar {
+.pres-topline {
+  height: 2px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.pres-topline-fill {
+  height: 100%;
+  background: var(--fg);
+  transition: width 220ms ease;
+  width: 0%;
+}
+
+/* ── Minimal top chrome: section label + ghost controls ─────────────────── */
+
+.pres-chrome {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0 1.25rem;
-  height: 2.875rem;
-  border-bottom: 1px solid var(--border);
+  padding: 0.5rem 1rem 0;
   flex-shrink: 0;
 }
 
-.pres-section {
-  font-size: 0.8125rem;
+.pres-chrome-label {
+  font-size: 0.75rem;
   color: var(--muted-fg);
   font-weight: 500;
+  letter-spacing: 0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
   min-width: 0;
+  opacity: 0.75;
 }
 
-.pres-toolbar-right {
+.pres-chrome-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.125rem;
   flex-shrink: 0;
 }
 
-.pres-counter {
-  font-size: 0.8125rem;
-  color: var(--muted-fg);
-  min-width: 3.5rem;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
-}
-
-.pres-icon-btn {
-  width: 1.875rem;
-  height: 1.875rem;
+/* Ghost buttons — transparent, no border */
+.pres-ghost {
+  width: 2rem;
+  height: 2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--fg);
+  border: none;
+  border-radius: var(--radius);
+  color: var(--muted-fg);
   cursor: pointer;
-  transition: background 100ms, border-color 100ms;
-  flex-shrink: 0;
+  transition: background 100ms, color 100ms;
 }
 
-.pres-icon-btn:hover {
+.pres-ghost:hover {
   background: var(--muted);
-  border-color: var(--border-strong);
+  color: var(--fg);
 }
 
 /* ── Slide viewport ───────────────────────────────────────────────────────── */
@@ -1994,7 +1997,7 @@ body {
   overflow-y: auto;
   display: flex;
   justify-content: center;
-  padding: 2.75rem 2rem 2rem;
+  padding: 2.5rem 2rem 1.5rem;
   scroll-behavior: smooth;
 }
 
@@ -2003,128 +2006,143 @@ body {
   max-width: 52rem;
 }
 
-/* Fade-in when slide changes */
-.pres-slide--animate {
-  animation: pres-in 160ms ease;
+/* Slide fade-in */
+.pres-slide.pres-anim {
+  animation: pres-in 160ms ease both;
 }
 
 @keyframes pres-in {
-  from { opacity: 0; transform: translateY(5px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0);   }
 }
 
-/* Section heading on a fresh slide */
+/* Section heading resets top margin on first entry */
 .pres-slide > h2:first-child,
-.pres-slide > h3:first-child {
-  margin-top: 0;
-}
+.pres-slide > h3:first-child { margin-top: 0; }
 
-/* Readable font scale for projection */
+/* Slightly larger type for comfortable reading */
 .pres-slide > h2:first-child {
   font-size: clamp(1.375rem, 3.5vw, 2rem);
   letter-spacing: -0.025em;
+  line-height: 1.2;
   margin-bottom: 1.25rem;
 }
 
 .pres-slide > p,
 .pres-slide > ul,
-.pres-slide > ol {
-  font-size: 1.0625rem;
-  line-height: 1.75;
-}
+.pres-slide > ol { font-size: 1.0625rem; line-height: 1.75; }
 
-.pres-slide pre {
-  font-size: 0.9375rem;
-}
+.pres-slide pre    { font-size: 0.9375rem; }
+.pres-slide table  { width: 100%; }
 
-.pres-slide table {
-  width: 100%;
-}
-
-/* Continuation context pill */
+/* Continuation pill — no border, use subtle bg instead */
 .pres-pill {
   display: inline-block;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--muted-fg);
   background: var(--muted);
-  border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 0.1875rem 0.625rem;
-  margin-bottom: 1.25rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  padding: 0.1875rem 0.5rem;
+  margin-bottom: 1.5rem;
 }
 
-/* ── Navigation bar ───────────────────────────────────────────────────────── */
+/* ── Floating nav cluster at bottom ──────────────────────────────────────── */
 
-.pres-nav {
+.pres-dock {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1.25rem;
-  border-top: 1px solid var(--border);
+  gap: 0.25rem;
+  padding-bottom: 1.25rem;
   flex-shrink: 0;
 }
 
-.pres-nav-btn {
+.pres-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  /* Floating pill: shadow instead of border */
+  background: var(--bg);
+  border-radius: 2rem;
+  padding: 0.3125rem 0.5rem;
+  box-shadow:
+    0 0 0 1px oklch(0 0 0 / 0.07),
+    0 2px 8px  oklch(0 0 0 / 0.08),
+    0 8px 24px oklch(0 0 0 / 0.06);
+}
+
+html.dark .pres-cluster {
+  box-shadow:
+    0 0 0 1px oklch(1 0 0 / 0.08),
+    0 2px 8px  oklch(0 0 0 / 0.4),
+    0 8px 24px oklch(0 0 0 / 0.35);
+}
+
+/* Individual cluster button */
+.pres-btn {
   width: 2.125rem;
   height: 2.125rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: none;
+  border-radius: 1.5rem;
   color: var(--fg);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 100ms, border-color 100ms, opacity 100ms;
+  transition: background 100ms, opacity 100ms;
 }
 
-.pres-nav-btn:hover:not(:disabled) {
+.pres-btn:hover:not(:disabled) {
   background: var(--muted);
-  border-color: var(--border-strong);
 }
 
-.pres-nav-btn:disabled {
-  opacity: 0.28;
+.pres-btn:disabled {
+  opacity: 0.22;
   cursor: default;
 }
 
-.pres-progress {
-  flex: 1;
-  height: 2px;
+/* Hairline separator between button groups */
+.pres-sep {
+  display: inline-block;
+  width: 1px;
+  height: 1.25rem;
   background: var(--border);
-  border-radius: 1px;
-  overflow: hidden;
-}
-
-.pres-progress-fill {
-  height: 100%;
-  background: var(--fg);
-  border-radius: 1px;
-  transition: width 200ms ease;
-  width: 0%;
-}
-
-/* ── Keyboard hint ────────────────────────────────────────────────────────── */
-
-.pres-hint {
-  text-align: center;
-  font-size: 0.6875rem;
-  letter-spacing: 0.03em;
-  color: var(--muted-fg);
-  padding: 0.25rem 1rem 0.5rem;
+  margin: 0 0.25rem;
   flex-shrink: 0;
 }
 
-/* ── Responsive adjustments ───────────────────────────────────────────────── */
+/* Counter text in the middle of the cluster */
+.pres-count {
+  font-size: 0.75rem;
+  color: var(--muted-fg);
+  min-width: 5.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  padding: 0 0.125rem;
+  white-space: nowrap;
+}
+
+/* ── Hint row below cluster ───────────────────────────────────────────────── */
+
+.pres-hint {
+  font-size: 0.625rem;
+  letter-spacing: 0.035em;
+  color: var(--muted-fg);
+  opacity: 0.55;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
 
 @media (max-width: 480px) {
-  .pres-hint      { display: none; }
-  .pres-viewport  { padding: 1.5rem 1rem; }
-  .pres-toolbar   { padding: 0 1rem; }
-  .pres-nav       { padding: 0.625rem 1rem; gap: 0.75rem; }
+  .pres-hint     { display: none; }
+  .pres-viewport { padding: 1.5rem 1rem 1rem; }
+  .pres-chrome   { padding: 0.375rem 0.75rem 0; }
   .pres-slide > p,
   .pres-slide > ul,
   .pres-slide > ol { font-size: 1rem; }

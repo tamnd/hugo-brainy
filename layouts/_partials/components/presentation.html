@@ -1,18 +1,20 @@
-{{/* Presentation mode overlay — injected once per docs/single page. */}}
+{{/* Presentation mode overlay — 2D navigation: ← → sections, ↑ ↓ slides within section */}}
 
 <div id="pres-overlay" class="pres-overlay" hidden tabindex="-1"
      role="dialog" aria-modal="true" aria-label="Presentation mode">
 
-  {{/* ── Toolbar ─────────────────────────────────────────────────── */}}
-  <div class="pres-toolbar">
-    <div class="pres-section" id="pres-section"></div>
-    <div class="pres-toolbar-right">
-      <span class="pres-counter" id="pres-counter" aria-live="polite"></span>
+  {{/* ── 2 px progress line at very top ────────────────────────── */}}
+  <div class="pres-topline">
+    <div class="pres-topline-fill" id="pres-fill"></div>
+  </div>
 
-      {{/* Fullscreen toggle */}}
-      <button class="pres-icon-btn" id="pres-fs"
-              title="Toggle fullscreen (F)" aria-label="Toggle fullscreen">
-        <svg class="pres-fs-expand" xmlns="http://www.w3.org/2000/svg"
+  {{/* ── Minimal chrome: section label + ghost controls ─────────── */}}
+  <div class="pres-chrome">
+    <div class="pres-chrome-label" id="pres-label" aria-live="polite"></div>
+    <div class="pres-chrome-actions">
+      <button class="pres-ghost" id="pres-fs"
+              title="Fullscreen (F)" aria-label="Toggle fullscreen">
+        <svg class="pres-icon-expand" xmlns="http://www.w3.org/2000/svg"
              width="15" height="15" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -21,7 +23,7 @@
           <path d="M3 16v3a2 2 0 0 0 2 2h3"/>
           <path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
         </svg>
-        <svg class="pres-fs-compress" xmlns="http://www.w3.org/2000/svg"
+        <svg class="pres-icon-compress" xmlns="http://www.w3.org/2000/svg"
              width="15" height="15" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round"
@@ -32,9 +34,7 @@
           <path d="M16 21v-3a2 2 0 0 1 2-2h3"/>
         </svg>
       </button>
-
-      {{/* Close */}}
-      <button class="pres-icon-btn" id="pres-close"
+      <button class="pres-ghost" id="pres-close"
               title="Exit (Esc)" aria-label="Exit presentation">
         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15"
              viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -46,36 +46,74 @@
     </div>
   </div>
 
-  {{/* ── Slide viewport ──────────────────────────────────────────── */}}
+  {{/* ── Slide content ────────────────────────────────────────────── */}}
   <div class="pres-viewport" id="pres-viewport">
     <div class="pres-slide" id="pres-slide"></div>
   </div>
 
-  {{/* ── Navigation bar ──────────────────────────────────────────── */}}
-  <div class="pres-nav">
-    <button class="pres-nav-btn" id="pres-prev" aria-label="Previous slide" disabled>
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-           viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-           aria-hidden="true">
-        <path d="M15 18 9 12l6-6"/>
-      </svg>
-    </button>
-    <div class="pres-progress" role="progressbar"
-         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <div class="pres-progress-fill" id="pres-fill"></div>
+  {{/* ── Floating nav cluster ────────────────────────────────────── */}}
+  {{/*
+      Layout:  [«]  │  [↑]  counter  [↓]  │  [»]
+      «/» = prev/next section   ↑/↓ = prev/next slide within section
+  */}}
+  <div class="pres-dock">
+    <div class="pres-cluster" role="toolbar" aria-label="Slide navigation">
+
+      {{/* Prev section */}}
+      <button class="pres-btn" id="pres-sec-prev"
+              title="Previous section (←)" aria-label="Previous section" disabled>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+             viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/>
+        </svg>
+      </button>
+
+      <span class="pres-sep" aria-hidden="true"></span>
+
+      {{/* Prev slide within section */}}
+      <button class="pres-btn" id="pres-up"
+              title="Previous slide in section (↑)" aria-label="Previous slide in section" disabled>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+             viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <path d="M18 15l-6-6-6 6"/>
+        </svg>
+      </button>
+
+      {{/* Counter: §N/M or §N/M · P/Q */}}
+      <div class="pres-count" id="pres-count" aria-live="polite"></div>
+
+      {{/* Next slide within section */}}
+      <button class="pres-btn" id="pres-dn"
+              title="Next slide in section (↓ / Space)" aria-label="Next slide in section">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+             viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </button>
+
+      <span class="pres-sep" aria-hidden="true"></span>
+
+      {{/* Next section */}}
+      <button class="pres-btn" id="pres-sec-next"
+              title="Next section (→)" aria-label="Next section">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+             viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+          <path d="M13 17l5-5-5-5M6 17l5-5-5-5"/>
+        </svg>
+      </button>
+
     </div>
-    <button class="pres-nav-btn" id="pres-next" aria-label="Next slide">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-           viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-           aria-hidden="true">
-        <path d="M9 18l6-6-6-6"/>
-      </svg>
-    </button>
+    <div class="pres-hint" aria-hidden="true">← → section · ↑ ↓ slide · Space next · F fullscreen · Esc exit</div>
   </div>
 
-  <div class="pres-hint" aria-hidden="true">← → navigate · F fullscreen · Esc exit</div>
 </div>
 
 <script>
@@ -86,64 +124,65 @@
   var overlay   = document.getElementById('pres-overlay');
   var slideEl   = document.getElementById('pres-slide');
   var viewport  = document.getElementById('pres-viewport');
-  var sectionEl = document.getElementById('pres-section');
-  var counterEl = document.getElementById('pres-counter');
+  var labelEl   = document.getElementById('pres-label');
+  var countEl   = document.getElementById('pres-count');
   var fillEl    = document.getElementById('pres-fill');
-  var btnPrev   = document.getElementById('pres-prev');
-  var btnNext   = document.getElementById('pres-next');
+  var btnOpen   = document.getElementById('pres-open');
   var btnClose  = document.getElementById('pres-close');
   var btnFS     = document.getElementById('pres-fs');
-  var btnOpen   = document.getElementById('pres-open');
+  var btnSecP   = document.getElementById('pres-sec-prev');
+  var btnSecN   = document.getElementById('pres-sec-next');
+  var btnUp     = document.getElementById('pres-up');
+  var btnDn     = document.getElementById('pres-dn');
 
-  /* ── State ────────────────────────────────────────────────────────────── */
-  var slides = [];
-  var idx    = 0;
+  /* ── 2D state ─────────────────────────────────────────────────────────── */
+  var sections = [];   // [{label, slides:[{heading, blocks, continued, secLabel}]}]
+  var si = 0;          // section index
+  var pi = 0;          // paragraph/slide index within section
 
   /* ── Slide-weight table ───────────────────────────────────────────────── */
-  // Each block type has a cost. A slide is split when accumulated cost would
-  // exceed THRESHOLD, keeping content digestible for presentation.
-  var TAG_WEIGHT = {
-    p: 3, h3: 2, h4: 1,
-    ul: 3, ol: 3, li: 0,   // li counted through parent
-    pre: 6,                 // code blocks are visually heavy
-    table: 5,
-    blockquote: 3,
-    figure: 4, img: 4,
-    hr: 0,
-  };
+  var TAG_W = { p:3, h3:2, h4:1, ul:3, ol:3, pre:6, table:5,
+                blockquote:3, figure:4, img:4, hr:0 };
   var THRESHOLD = 12;
 
   function weightOf(el) {
-    // KaTeX display math (wrapped in a <p> or sibling span) is visually heavy
     if (el.querySelector && el.querySelector('.katex-display')) return 4;
-    return TAG_WEIGHT[el.tagName.toLowerCase()] != null
-      ? TAG_WEIGHT[el.tagName.toLowerCase()]
-      : 2;
+    var w = TAG_W[el.tagName.toLowerCase()];
+    return w != null ? w : 2;
   }
 
-  /* ── Build slide list ─────────────────────────────────────────────────── */
-  function buildSlides() {
+  /* ── Build 2D sections ────────────────────────────────────────────────── */
+  function buildSections() {
     var content = document.querySelector('.brain-single-content .content');
     if (!content) return [];
 
     var result  = [];
-    var slide   = null;
+    var curSec  = { label: '', slides: [] };
+    var curSlide = null;
     var cost    = 0;
-    var section = '';   // current h2 label
 
-    function flush() {
-      if (slide && (slide.heading || slide.blocks.length)) result.push(slide);
+    function pushSlide() {
+      if (curSlide && (curSlide.heading || curSlide.blocks.length)) {
+        curSec.slides.push(curSlide);
+      }
+      curSlide = null;
     }
 
-    function startSlide(headingNode, sec, continued) {
-      flush();
-      slide = {
-        heading:   headingNode,   // cloned h2 element or null
-        section:   sec,
-        blocks:    [],
-        continued: continued,
-      };
-      cost = headingNode ? 2 : 0;
+    function pushSection() {
+      pushSlide();
+      if (curSec.slides.length) result.push(curSec);
+    }
+
+    function newSection(label) {
+      pushSection();
+      curSec  = { label: label, slides: [] };
+      cost    = 0;
+    }
+
+    function newSlide(heading, secLabel, cont) {
+      pushSlide();
+      curSlide = { heading: heading, secLabel: secLabel, blocks: [], continued: cont };
+      cost = heading ? 2 : 0;
     }
 
     var children = Array.from(content.children);
@@ -151,56 +190,61 @@
       var el  = children[i];
       var tag = el.tagName.toLowerCase();
 
-      // Skip the page-header div (title, tags, actions)
       if (el.classList.contains('brain-page-header')) continue;
-      // Skip h1 — already in the page header
       if (tag === 'h1') continue;
 
       if (tag === 'h2') {
-        section = el.textContent.trim();
-        startSlide(el.cloneNode(true), section, false);
+        var lbl = el.textContent.trim();
+        newSection(lbl);
+        newSlide(el.cloneNode(true), lbl, false);
+        cost = 2;
         continue;
       }
 
-      // Ensure we have an open slide (intro content before first h2)
-      if (!slide) startSlide(null, '', false);
+      // Ensure there is an open slide
+      if (!curSlide) newSlide(null, curSec.label, false);
 
       var w = weightOf(el);
-
-      // If adding this block would overflow, split here — but only if the
-      // current slide already has some content (never split immediately).
-      if (cost + w > THRESHOLD && slide.blocks.length > 0) {
-        startSlide(null, section, true);
+      if (cost + w > THRESHOLD && curSlide.blocks.length > 0) {
+        newSlide(null, curSec.label, true);
       }
-
-      slide.blocks.push(el.cloneNode(true));
+      curSlide.blocks.push(el.cloneNode(true));
       cost += w;
     }
-    flush();
+    pushSection();
 
-    // Drop empty slides (edge case: h2 with no body before next h2)
-    return result.filter(function (s) {
-      return s.heading || s.blocks.length > 0;
-    });
+    return result.filter(function (s) { return s.slides.length > 0; });
   }
 
-  /* ── Render one slide ─────────────────────────────────────────────────── */
-  function render(i) {
-    var s = slides[i];
+  /* ── Accessors ────────────────────────────────────────────────────────── */
+  function curSec()   { return sections[si]; }
+  function curSlide() { return (curSec() || {}).slides[pi]; }
+
+  function totalSlides() {
+    return sections.reduce(function (s, sec) { return s + sec.slides.length; }, 0);
+  }
+
+  function globalIdx() {
+    var g = 0;
+    for (var i = 0; i < si; i++) g += sections[i].slides.length;
+    return g + pi;
+  }
+
+  /* ── Render ───────────────────────────────────────────────────────────── */
+  function render() {
+    var s = curSlide();
     if (!s) return;
 
     slideEl.innerHTML = '';
 
     if (s.heading) {
-      // Main section heading
       var h = s.heading.cloneNode(true);
       h.style.marginTop = '0';
       slideEl.appendChild(h);
-    } else if (s.continued && s.section) {
-      // Continuation pill — reminds the reader which section they're in
+    } else if (s.continued && s.secLabel) {
       var pill = document.createElement('div');
       pill.className   = 'pres-pill';
-      pill.textContent = s.section;
+      pill.textContent = s.secLabel;
       slideEl.appendChild(pill);
     }
 
@@ -208,47 +252,81 @@
       slideEl.appendChild(s.blocks[j].cloneNode(true));
     }
 
-    // Update toolbar & nav
-    var total = slides.length;
-    var pct   = ((i + 1) / total) * 100;
+    /* Update chrome */
+    var sec      = curSec();
+    var secTotal = sections.length;
+    var slides   = sec.slides;
 
-    counterEl.textContent         = (i + 1) + ' / ' + total;
-    sectionEl.textContent         = s.section || '';
-    fillEl.style.width            = pct + '%';
-    btnPrev.disabled              = (i === 0);
-    btnNext.disabled              = (i === total - 1);
-    viewport.scrollTop            = 0;
+    labelEl.textContent = sec.label || '';
 
-    // Update ARIA on progress bar
-    var pb = document.querySelector('.pres-progress');
-    if (pb) pb.setAttribute('aria-valuenow', Math.round(pct));
+    // Counter: §si+1/secTotal  [· pi+1/slides.length if >1 slide in section]
+    var cnt = '§' + (si + 1) + ' / ' + secTotal;
+    if (slides.length > 1) {
+      cnt += ' · ' + (pi + 1) + ' / ' + slides.length;
+    }
+    countEl.textContent = cnt;
 
-    // Restart the fade-in animation
-    slideEl.classList.remove('pres-slide--animate');
-    void slideEl.offsetWidth;   // reflow
-    slideEl.classList.add('pres-slide--animate');
+    // Progress line (global)
+    var gIdx = globalIdx();
+    var tot  = totalSlides();
+    fillEl.style.width = (tot > 0 ? ((gIdx + 1) / tot) * 100 : 0) + '%';
+
+    // Button states
+    btnSecP.disabled = (si === 0);
+    btnSecN.disabled = (si === sections.length - 1);
+    btnUp.disabled   = (pi === 0);
+    btnDn.disabled   = (pi === slides.length - 1);
+
+    // Trigger animation
+    slideEl.classList.remove('pres-anim');
+    void slideEl.offsetWidth;
+    slideEl.classList.add('pres-anim');
+
+    viewport.scrollTop = 0;
   }
 
-  /* ── Navigate ─────────────────────────────────────────────────────────── */
-  function go(delta) {
-    var next = idx + delta;
-    if (next < 0 || next >= slides.length) return;
-    idx = next;
-    render(idx);
+  /* ── Navigation ───────────────────────────────────────────────────────── */
+  function goSection(delta) {
+    var next = si + delta;
+    if (next < 0 || next >= sections.length) return;
+    si = next; pi = 0; render();
   }
 
-  /* ── Open ─────────────────────────────────────────────────────────────── */
+  function goSlide(delta) {
+    var sec  = curSec();
+    if (!sec) return;
+    var next = pi + delta;
+    if (next < 0 || next >= sec.slides.length) return;
+    pi = next; render();
+  }
+
+  // Linear "next" — advances through paragraphs first, then sections
+  function goNext() {
+    var sec = curSec();
+    if (!sec) return;
+    if (pi < sec.slides.length - 1) { pi++; }
+    else if (si < sections.length - 1) { si++; pi = 0; }
+    render();
+  }
+
+  // Linear "prev" — goes back through paragraphs, then sections
+  function goPrev() {
+    if (pi > 0) { pi--; }
+    else if (si > 0) { si--; pi = sections[si].slides.length - 1; }
+    render();
+  }
+
+  /* ── Open / Close ─────────────────────────────────────────────────────── */
   function open() {
-    slides = buildSlides();
-    if (!slides.length) return;
-    idx = 0;
+    sections = buildSections();
+    if (!sections.length) return;
+    si = 0; pi = 0;
     overlay.hidden = false;
     document.body.style.overflow = 'hidden';
     overlay.focus();
-    render(0);
+    render();
   }
 
-  /* ── Close ────────────────────────────────────────────────────────────── */
   function close() {
     overlay.hidden = true;
     document.body.style.overflow = '';
@@ -257,45 +335,56 @@
 
   /* ── Fullscreen ───────────────────────────────────────────────────────── */
   function toggleFS() {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      overlay.requestFullscreen && overlay.requestFullscreen();
-    }
+    if (document.fullscreenElement) { document.exitFullscreen(); }
+    else if (overlay.requestFullscreen) { overlay.requestFullscreen(); }
   }
 
   document.addEventListener('fullscreenchange', function () {
     var isFS = !!document.fullscreenElement;
-    var expand   = btnFS.querySelector('.pres-fs-expand');
-    var compress = btnFS.querySelector('.pres-fs-compress');
-    if (expand)   expand.hidden   = isFS;
-    if (compress) compress.hidden = !isFS;
-    btnFS.title = isFS ? 'Exit fullscreen (F)' : 'Toggle fullscreen (F)';
+    var exp  = btnFS.querySelector('.pres-icon-expand');
+    var cmp  = btnFS.querySelector('.pres-icon-compress');
+    if (exp) exp.hidden  = isFS;
+    if (cmp) cmp.hidden  = !isFS;
+    btnFS.title = isFS ? 'Exit fullscreen (F)' : 'Fullscreen (F)';
   });
 
   /* ── Events ───────────────────────────────────────────────────────────── */
   if (btnOpen) btnOpen.addEventListener('click', open);
-  btnPrev.addEventListener('click', function () { go(-1); });
-  btnNext.addEventListener('click', function () { go(+1); });
   btnClose.addEventListener('click', close);
   btnFS.addEventListener('click', toggleFS);
+  btnSecP.addEventListener('click', function () { goSection(-1); });
+  btnSecN.addEventListener('click', function () { goSection(+1); });
+  btnUp.addEventListener('click', function ()   { goSlide(-1); });
+  btnDn.addEventListener('click', function ()   { goSlide(+1); });
 
   overlay.addEventListener('keydown', function (e) {
-    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp'   || e.key === 'k') { go(-1); e.preventDefault(); return; }
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'j') { go(+1); e.preventDefault(); return; }
-    if (e.key === ' ')       { go(e.shiftKey ? -1 : +1); e.preventDefault(); return; }
-    if (e.key === 'Escape')  { close(); return; }
-    if (e.key === 'f' || e.key === 'F') { toggleFS(); }
+    switch (e.key) {
+      case 'ArrowLeft':  case 'h': goSection(-1); e.preventDefault(); break;
+      case 'ArrowRight': case 'l': goSection(+1); e.preventDefault(); break;
+      case 'ArrowUp':    case 'k': goSlide(-1);   e.preventDefault(); break;
+      case 'ArrowDown':  case 'j': goSlide(+1);   e.preventDefault(); break;
+      case ' ':
+        e.shiftKey ? goPrev() : goNext();
+        e.preventDefault(); break;
+      case 'Escape': close(); break;
+      case 'f': case 'F': toggleFS(); break;
+    }
   });
 
-  /* Touch / swipe */
-  var touchStartX = 0;
+  /* Touch / swipe (horizontal → sections, vertical → slides) */
+  var tx = 0, ty = 0;
   overlay.addEventListener('touchstart', function (e) {
-    touchStartX = e.touches[0].clientX;
+    tx = e.touches[0].clientX;
+    ty = e.touches[0].clientY;
   }, { passive: true });
   overlay.addEventListener('touchend', function (e) {
-    var dx = e.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(dx) > 50) go(dx < 0 ? +1 : -1);
+    var dx = e.changedTouches[0].clientX - tx;
+    var dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+      goSection(dx < 0 ? +1 : -1);
+    } else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 40) {
+      goSlide(dy < 0 ? +1 : -1);
+    }
   }, { passive: true });
 
 })();
