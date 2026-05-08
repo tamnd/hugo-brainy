@@ -1904,3 +1904,277 @@ body {
   .cal-body { grid-template-columns: 16rem 1fr; gap: 0 2rem; }
   .cal-entry__meta { font-size: 0.6875rem; }
 }
+
+/* ===== Presentation mode ================================================== */
+
+/* ── Overlay ──────────────────────────────────────────────────────────────── */
+
+.pres-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: var(--bg);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  outline: none;
+  font-family: var(--font-sans);
+}
+
+.pres-overlay[hidden] { display: none; }
+
+/* ── 2 px progress line at very top ──────────────────────────────────────── */
+
+.pres-topline {
+  height: 2px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.pres-topline-fill {
+  height: 100%;
+  background: var(--fg);
+  transition: width 220ms ease;
+  width: 0%;
+}
+
+/* ── Minimal top chrome: section label + ghost controls ─────────────────── */
+
+.pres-chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 1rem 0;
+  flex-shrink: 0;
+}
+
+.pres-chrome-label {
+  font-size: 0.9375rem;
+  color: var(--fg);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  opacity: 0.9;
+}
+
+/* Section-position dots */
+.pres-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 1.25rem;
+  padding: 0.375rem 1rem;
+  flex-shrink: 0;
+}
+.pres-dots:empty { display: none; }
+
+.pres-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--border-strong, #ccc);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 200ms, transform 150ms;
+}
+.pres-dot--active {
+  background: var(--fg);
+  transform: scale(1.4);
+}
+.pres-dot:hover:not(.pres-dot--active) {
+  background: var(--muted-fg);
+}
+
+.pres-chrome-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex-shrink: 0;
+}
+
+/* Ghost buttons — transparent, no border */
+.pres-ghost {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--muted-fg);
+  cursor: pointer;
+  transition: background 100ms, color 100ms;
+}
+
+.pres-ghost:hover {
+  background: var(--muted);
+  color: var(--fg);
+}
+
+/* ── Slide viewport ───────────────────────────────────────────────────────── */
+
+.pres-viewport {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  padding: 2.5rem 2rem 1.5rem;
+  scroll-behavior: smooth;
+}
+
+.pres-slide {
+  width: 100%;
+  max-width: 52rem;
+}
+
+/* Slide fade-in */
+.pres-slide.pres-anim {
+  animation: pres-in 160ms ease both;
+}
+
+@keyframes pres-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* Section heading resets top margin on first entry */
+.pres-slide > h2:first-child,
+.pres-slide > h3:first-child { margin-top: 0; }
+
+/* Slightly larger type for comfortable reading */
+.pres-slide > h2:first-child {
+  font-size: clamp(1.375rem, 3.5vw, 2rem);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  margin-bottom: 1.25rem;
+}
+
+.pres-slide > p,
+.pres-slide > ul,
+.pres-slide > ol { font-size: 1.0625rem; line-height: 1.75; }
+
+.pres-slide pre    { font-size: 0.9375rem; }
+.pres-slide table  { width: 100%; }
+
+/* Continuation pill — no border, use subtle bg instead */
+.pres-pill {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-fg);
+  background: var(--muted);
+  border-radius: var(--radius);
+  padding: 0.1875rem 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Floating nav cluster at bottom ──────────────────────────────────────── */
+
+.pres-dock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding-bottom: 1.25rem;
+  flex-shrink: 0;
+}
+
+.pres-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  /* Floating pill: shadow instead of border */
+  background: var(--bg);
+  border-radius: 2rem;
+  padding: 0.3125rem 0.5rem;
+  box-shadow:
+    0 0 0 1px oklch(0 0 0 / 0.07),
+    0 2px 8px  oklch(0 0 0 / 0.08),
+    0 8px 24px oklch(0 0 0 / 0.06);
+}
+
+html.dark .pres-cluster {
+  box-shadow:
+    0 0 0 1px oklch(1 0 0 / 0.08),
+    0 2px 8px  oklch(0 0 0 / 0.4),
+    0 8px 24px oklch(0 0 0 / 0.35);
+}
+
+/* Individual cluster button */
+.pres-btn {
+  width: 2.125rem;
+  height: 2.125rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 1.5rem;
+  color: var(--fg);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 100ms, opacity 100ms;
+}
+
+.pres-btn:hover:not(:disabled) {
+  background: var(--muted);
+}
+
+.pres-btn:disabled {
+  opacity: 0.22;
+  cursor: default;
+}
+
+/* Hairline separator between button groups */
+.pres-sep {
+  display: inline-block;
+  width: 1px;
+  height: 1.25rem;
+  background: var(--border);
+  margin: 0 0.25rem;
+  flex-shrink: 0;
+}
+
+/* Counter text in the middle of the cluster */
+.pres-count {
+  font-size: 0.75rem;
+  color: var(--muted-fg);
+  min-width: 5.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  padding: 0 0.125rem;
+  white-space: nowrap;
+}
+
+/* ── Hint row below cluster ───────────────────────────────────────────────── */
+
+.pres-hint {
+  font-size: 0.625rem;
+  letter-spacing: 0.035em;
+  color: var(--muted-fg);
+  opacity: 0.55;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .pres-hint     { display: none; }
+  .pres-viewport { padding: 1.5rem 1rem 1rem; }
+  .pres-chrome   { padding: 0.375rem 0.75rem 0; }
+  .pres-slide > p,
+  .pres-slide > ul,
+  .pres-slide > ol { font-size: 1rem; }
+}

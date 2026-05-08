@@ -1,0 +1,367 @@
+{{/* Presentation mode — 2D nav: ← → sections, ↑ ↓ slides within section. */}}
+
+<div id="pres-overlay" class="pres-overlay" hidden tabindex="-1"
+     role="dialog" aria-modal="true" aria-label="Presentation mode">
+
+  {{/* ── 2 px progress line at very top ────────────────────────── */}}
+  <div class="pres-topline">
+    <div class="pres-topline-fill" id="pres-fill"></div>
+  </div>
+
+  {{/* ── Minimal chrome ───────────────────────────────────────────
+       Left:  page title › section label (readable size)
+       Right: fullscreen + close ghost buttons
+  */}}
+  <div class="pres-chrome">
+    <div class="pres-chrome-label" id="pres-label" aria-live="polite"></div>
+    <div class="pres-chrome-actions">
+      <button class="pres-ghost" id="pres-fs"
+              title="Fullscreen (F)" aria-label="Toggle fullscreen">
+        {{- partial "utils/lucide.html" (dict "name" "maximize" "size" 15 "class" "pres-icon-expand") -}}
+        {{- partial "utils/lucide.html" (dict "name" "minimize" "size" 15 "class" "pres-icon-compress") -}}
+      </button>
+      <button class="pres-ghost" id="pres-close"
+              title="Exit (Esc)" aria-label="Exit presentation">
+        {{- partial "utils/lucide.html" (dict "name" "x" "size" 15) -}}
+      </button>
+    </div>
+  </div>
+
+  {{/* ── Slide content ────────────────────────────────────────────── */}}
+  <div class="pres-viewport" id="pres-viewport">
+    <div class="pres-slide" id="pres-slide"></div>
+  </div>
+
+  {{/* ── Section-within dots: shows slide position inside section ── */}}
+  <div class="pres-dots" id="pres-dots" aria-hidden="true"></div>
+
+  {{/* ── Floating nav cluster ────────────────────────────────────── */}}
+  {{/*
+      [«] │ [↑] §N/M · P/Q [↓] │ [»]
+       ←sec   within-section   sec→
+  */}}
+  <div class="pres-dock">
+    <div class="pres-cluster" role="toolbar" aria-label="Slide navigation">
+
+      <button class="pres-btn" id="pres-sec-prev"
+              title="Previous section (←)" aria-label="Previous section" disabled>
+        {{- partial "utils/lucide.html" (dict "name" "chevrons-left" "size" 15) -}}
+      </button>
+
+      <span class="pres-sep" aria-hidden="true"></span>
+
+      <button class="pres-btn" id="pres-up"
+              title="Previous slide in section (↑)" aria-label="Previous slide in section" disabled>
+        {{- partial "utils/lucide.html" (dict "name" "chevron-up" "size" 15) -}}
+      </button>
+
+      <div class="pres-count" id="pres-count" aria-live="polite"></div>
+
+      <button class="pres-btn" id="pres-dn"
+              title="Next slide in section (↓ / Space)" aria-label="Next slide in section">
+        {{- partial "utils/lucide.html" (dict "name" "chevron-down" "size" 15) -}}
+      </button>
+
+      <span class="pres-sep" aria-hidden="true"></span>
+
+      <button class="pres-btn" id="pres-sec-next"
+              title="Next section (→)" aria-label="Next section">
+        {{- partial "utils/lucide.html" (dict "name" "chevrons-right" "size" 15) -}}
+      </button>
+
+    </div>
+    <div class="pres-hint" aria-hidden="true">← → section · ↑ ↓ slide · Space next · F fullscreen · Esc exit</div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── DOM refs ─────────────────────────────────────────────────────────── */
+  var overlay   = document.getElementById('pres-overlay');
+  var slideEl   = document.getElementById('pres-slide');
+  var viewport  = document.getElementById('pres-viewport');
+  var labelEl   = document.getElementById('pres-label');
+  var countEl   = document.getElementById('pres-count');
+  var fillEl    = document.getElementById('pres-fill');
+  var dotsEl    = document.getElementById('pres-dots');
+  var btnOpen   = document.getElementById('pres-open');
+  var btnClose  = document.getElementById('pres-close');
+  var btnFS     = document.getElementById('pres-fs');
+  var btnSecP   = document.getElementById('pres-sec-prev');
+  var btnSecN   = document.getElementById('pres-sec-next');
+  var btnUp     = document.getElementById('pres-up');
+  var btnDn     = document.getElementById('pres-dn');
+
+  /* ── 2D state ─────────────────────────────────────────────────────────── */
+  var sections    = [];  // [{label, slides:[{heading,blocks,continued,secLabel}]}]
+  var si          = 0;   // section index
+  var pi          = 0;   // paragraph/slide index within section
+  var pageTitleTx = '';  // page h1 text, set once on open
+
+  /* ── Weights ──────────────────────────────────────────────────────────── */
+  // A slide is split when accumulated weight exceeds THRESHOLD.
+  // Threshold raised to 24 so short-to-medium sections stay on one slide.
+  var TAG_W = { p:3, h3:2, h4:1, ul:3, ol:3, pre:6, table:5,
+                blockquote:3, figure:4, img:4, hr:0 };
+  var THRESHOLD = 24;
+
+  function weightOf(el) {
+    // Math display blocks take about the same space as a paragraph
+    if (el.querySelector && el.querySelector('.katex-display')) return 3;
+    var w = TAG_W[el.tagName.toLowerCase()];
+    return w != null ? w : 2;
+  }
+
+  /* ── Build sections ───────────────────────────────────────────────────── */
+  function buildSections() {
+    var content = document.querySelector('.brain-single-content .content');
+    if (!content) return [];
+
+    var result   = [];
+    var curSec   = { label: '', slides: [] };
+    var curSlide = null;
+    var cost     = 0;
+
+    function pushSlide() {
+      if (curSlide && (curSlide.heading || curSlide.blocks.length)) {
+        curSec.slides.push(curSlide);
+      }
+      curSlide = null;
+    }
+    function pushSection() {
+      pushSlide();
+      if (curSec.slides.length) result.push(curSec);
+    }
+    function newSection(label) {
+      pushSection();
+      curSec = { label: label, slides: [] };
+      cost = 0;
+    }
+    function newSlide(heading, secLabel, cont) {
+      pushSlide();
+      curSlide = { heading: heading, secLabel: secLabel, blocks: [], continued: cont };
+      cost = heading ? 2 : 0;
+    }
+
+    var children = Array.from(content.children);
+    for (var i = 0; i < children.length; i++) {
+      var el  = children[i];
+      var tag = el.tagName.toLowerCase();
+
+      if (el.classList.contains('brain-page-header')) continue;
+      if (tag === 'h1') continue;
+
+      if (tag === 'h2') {
+        var lbl = el.textContent.trim();
+        newSection(lbl);
+        newSlide(el.cloneNode(true), lbl, false);
+        cost = 2;
+        continue;
+      }
+
+      if (!curSlide) newSlide(null, curSec.label, false);
+
+      var w = weightOf(el);
+      if (cost + w > THRESHOLD && curSlide.blocks.length > 0) {
+        newSlide(null, curSec.label, true);
+      }
+      curSlide.blocks.push(el.cloneNode(true));
+      cost += w;
+    }
+    pushSection();
+
+    return result.filter(function (s) { return s.slides.length > 0; });
+  }
+
+  /* ── Accessors ────────────────────────────────────────────────────────── */
+  function curSec()   { return sections[si]; }
+  function curSlide() { return (curSec() || {}).slides[pi]; }
+  function totalSlides() {
+    return sections.reduce(function (s, sec) { return s + sec.slides.length; }, 0);
+  }
+  function globalIdx() {
+    var g = 0;
+    for (var i = 0; i < si; i++) g += sections[i].slides.length;
+    return g + pi;
+  }
+
+  /* ── Render ───────────────────────────────────────────────────────────── */
+  function render() {
+    var s = curSlide();
+    if (!s) return;
+
+    /* Slide content */
+    slideEl.innerHTML = '';
+    if (s.heading) {
+      var h = s.heading.cloneNode(true);
+      h.style.marginTop = '0';
+      slideEl.appendChild(h);
+    } else if (s.continued && s.secLabel) {
+      var pill = document.createElement('div');
+      pill.className   = 'pres-pill';
+      pill.textContent = s.secLabel;
+      slideEl.appendChild(pill);
+    }
+    for (var j = 0; j < s.blocks.length; j++) {
+      slideEl.appendChild(s.blocks[j].cloneNode(true));
+    }
+
+    /* Chrome label: "Page title › Section" or just section */
+    var sec = curSec();
+    if (sec.label) {
+      labelEl.textContent = pageTitleTx
+        ? pageTitleTx + ' › ' + sec.label
+        : sec.label;
+    } else {
+      labelEl.textContent = pageTitleTx || '';
+    }
+
+    /* Counter */
+    var slides   = sec.slides;
+    var cnt      = '§' + (si + 1) + ' / ' + sections.length;
+    if (slides.length > 1) cnt += ' · ' + (pi + 1) + ' / ' + slides.length;
+    countEl.textContent = cnt;
+
+    /* Progress */
+    var tot = totalSlides();
+    fillEl.style.width = (tot > 0 ? ((globalIdx() + 1) / tot) * 100 : 0) + '%';
+
+    /* Section dots — visible only when section has >1 slide */
+    renderDots(slides.length);
+
+    /* Button states */
+    btnSecP.disabled = (si === 0);
+    btnSecN.disabled = (si === sections.length - 1);
+    btnUp.disabled   = (pi === 0);
+    btnDn.disabled   = (pi === slides.length - 1);
+
+    /* Fade-in */
+    slideEl.classList.remove('pres-anim');
+    void slideEl.offsetWidth;
+    slideEl.classList.add('pres-anim');
+
+    viewport.scrollTop = 0;
+  }
+
+  /* ── Section dots ─────────────────────────────────────────────────────── */
+  function renderDots(total) {
+    dotsEl.innerHTML = '';
+    if (total <= 1) return;   // no dots needed for single-slide sections
+
+    for (var i = 0; i < total; i++) {
+      var dot = document.createElement('button');
+      dot.className = 'pres-dot' + (i === pi ? ' pres-dot--active' : '');
+      dot.setAttribute('aria-label', 'Slide ' + (i + 1) + ' of ' + total);
+      /* Capture i for the closure */
+      (function (idx) {
+        dot.addEventListener('click', function () { pi = idx; render(); });
+      })(i);
+      dotsEl.appendChild(dot);
+    }
+  }
+
+  /* ── Navigation ───────────────────────────────────────────────────────── */
+  function goSection(delta) {
+    var next = si + delta;
+    if (next < 0 || next >= sections.length) return;
+    si = next; pi = 0; render();
+  }
+  function goSlide(delta) {
+    var sec = curSec();
+    if (!sec) return;
+    var next = pi + delta;
+    if (next < 0 || next >= sec.slides.length) return;
+    pi = next; render();
+  }
+  function goNext() {
+    var sec = curSec();
+    if (!sec) return;
+    if (pi < sec.slides.length - 1) { pi++; }
+    else if (si < sections.length - 1) { si++; pi = 0; }
+    render();
+  }
+  function goPrev() {
+    if (pi > 0) { pi--; }
+    else if (si > 0) { si--; pi = sections[si].slides.length - 1; }
+    render();
+  }
+
+  /* ── Open / Close ─────────────────────────────────────────────────────── */
+  function open() {
+    sections = buildSections();
+    if (!sections.length) return;
+
+    /* Grab page title once */
+    var h1 = document.querySelector('.brain-page-header h1, .brain-single-content h1');
+    pageTitleTx = h1 ? h1.textContent.trim() : '';
+
+    si = 0; pi = 0;
+    overlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+    overlay.focus();
+    render();
+  }
+  function close() {
+    overlay.hidden = true;
+    document.body.style.overflow = '';
+    if (document.fullscreenElement) document.exitFullscreen();
+  }
+
+  /* ── Fullscreen ───────────────────────────────────────────────────────── */
+  function toggleFS() {
+    if (document.fullscreenElement) { document.exitFullscreen(); }
+    else if (overlay.requestFullscreen) { overlay.requestFullscreen(); }
+  }
+  document.addEventListener('fullscreenchange', function () {
+    var isFS = !!document.fullscreenElement;
+    var exp  = btnFS.querySelector('.pres-icon-expand');
+    var cmp  = btnFS.querySelector('.pres-icon-compress');
+    if (exp) exp.style.display  = isFS ? 'none' : '';
+    if (cmp) cmp.style.display  = isFS ? ''     : 'none';
+    btnFS.title = isFS ? 'Exit fullscreen (F)' : 'Fullscreen (F)';
+  });
+
+  /* Init fullscreen icon state */
+  (function () {
+    var cmp = btnFS.querySelector('.pres-icon-compress');
+    if (cmp) cmp.style.display = 'none';
+  })();
+
+  /* ── Events ───────────────────────────────────────────────────────────── */
+  if (btnOpen) btnOpen.addEventListener('click', open);
+  btnClose.addEventListener('click', close);
+  btnFS.addEventListener('click', toggleFS);
+  btnSecP.addEventListener('click', function () { goSection(-1); });
+  btnSecN.addEventListener('click', function () { goSection(+1); });
+  btnUp.addEventListener('click',   function () { goSlide(-1); });
+  btnDn.addEventListener('click',   function () { goSlide(+1); });
+
+  overlay.addEventListener('keydown', function (e) {
+    switch (e.key) {
+      case 'ArrowLeft':  case 'h': goSection(-1); e.preventDefault(); break;
+      case 'ArrowRight': case 'l': goSection(+1); e.preventDefault(); break;
+      case 'ArrowUp':    case 'k': goSlide(-1);   e.preventDefault(); break;
+      case 'ArrowDown':  case 'j': goSlide(+1);   e.preventDefault(); break;
+      case ' ':   e.shiftKey ? goPrev() : goNext(); e.preventDefault(); break;
+      case 'Escape': close(); break;
+      case 'f': case 'F': toggleFS(); break;
+    }
+  });
+
+  /* Touch: horizontal swipe → section, vertical swipe → slide */
+  var tx = 0, ty = 0;
+  overlay.addEventListener('touchstart', function (e) {
+    tx = e.touches[0].clientX; ty = e.touches[0].clientY;
+  }, { passive: true });
+  overlay.addEventListener('touchend', function (e) {
+    var dx = e.changedTouches[0].clientX - tx;
+    var dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) goSection(dx < 0 ? +1 : -1);
+    else if (Math.abs(dy) > 40) goSlide(dy < 0 ? +1 : -1);
+  }, { passive: true });
+
+})();
+</script>

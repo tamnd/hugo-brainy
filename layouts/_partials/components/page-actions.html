@@ -1,5 +1,5 @@
 {{- /*
-  Renders three icon-only action buttons in the page header:
+  Renders icon-only action buttons in the page header:
     • GitHub  — opens the source file on GitHub
     • Raw     — opens the raw Markdown output
     • Copy    — copies the Markdown to clipboard (reuses hextra's copy JS)
@@ -11,7 +11,6 @@
 {{- if and .File $editBase -}}
   {{- $viewBase := replace $editBase "/edit/" "/blob/" -}}
   {{- with .File -}}
-    {{/* Same technique as hextra toc.html: recover the language subdir from Meta fields */}}
     {{- $sourceDir := replace (strings.TrimPrefix .FileInfo.Meta.BaseDir .FileInfo.Meta.SourceRoot) "\\" "/" -}}
     {{- $sourceDir = strings.TrimPrefix "/content" $sourceDir -}}
     {{- $path := replace .Path "\\" "/" -}}
@@ -33,7 +32,7 @@
      class="brain-page-action"
      title="View source on GitHub"
      aria-label="View source on GitHub">
-    {{- partial "utils/icon.html" (dict "name" "github" "attributes" "height=16 width=16") -}}
+    {{- partial "utils/lucide.html" (dict "name" "github" "size" 16) -}}
   </a>
   {{- end -}}
 
@@ -43,7 +42,7 @@
      class="brain-page-action"
      title="View raw Markdown"
      aria-label="View raw Markdown">
-    {{- partial "utils/icon.html" (dict "name" "markdown" "attributes" "height=16 width=16") -}}
+    {{- partial "utils/lucide.html" (dict "name" "file-text" "size" 16) -}}
   </a>
 
   <button type="button"
@@ -52,10 +51,10 @@
      title="Copy page as Markdown"
      aria-label="Copy page as Markdown">
     <span class="brain-page-action__icon brain-page-action__icon--copy">
-      {{- partial "utils/icon.html" (dict "name" "copy" "attributes" "height=16 width=16") -}}
+      {{- partial "utils/lucide.html" (dict "name" "copy" "size" 16) -}}
     </span>
     <span class="brain-page-action__icon brain-page-action__icon--check">
-      {{- partial "utils/icon.html" (dict "name" "check" "attributes" "height=16 width=16") -}}
+      {{- partial "utils/lucide.html" (dict "name" "check" "size" 16) -}}
     </span>
   </button>
   {{- end -}}
