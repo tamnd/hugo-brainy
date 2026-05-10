@@ -12,7 +12,7 @@
 {{- $name  := .name -}}
 {{- $size  := .size  | default 16 -}}
 {{- $class := .class | default "" -}}
-{{- $inner := index site.Data.lucide $name -}}
+{{- $inner := index hugo.Data.lucide $name -}}
 {{- if $inner -}}
 <svg xmlns="http://www.w3.org/2000/svg"
      width="{{ $size }}" height="{{ $size }}"
