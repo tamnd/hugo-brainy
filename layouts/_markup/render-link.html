@@ -1,0 +1,34 @@
+{{- $dest := .Destination -}}
+{{- $url := urls.Parse $dest -}}
+{{- $isExternal := strings.HasPrefix .Destination "http" -}}
+{{- $skipNormalize := or $isExternal (strings.HasPrefix $dest "mailto:") (strings.HasPrefix $dest "tel:") (strings.HasPrefix $dest "#") -}}
+
+{{- if and (not $skipNormalize) (gt (len (findRE `\.md([?#].*)?$` $dest)) 0) -}}
+  {{- $dest = replaceRE `\.md([?#].*)?$` `/$1` $dest -}}
+  {{- $url = urls.Parse $dest -}}
+{{- end -}}
+
+{{- if and $dest (hasPrefix $dest "/") -}}
+  {{- with or (.PageInner.GetPage $url.Path) (.PageInner.Resources.Get $url.Path) (resources.Get $url.Path) -}}
+    {{- $query := cond $url.RawQuery (printf "?%s" $url.RawQuery) "" -}}
+    {{- $fragment := cond $url.Fragment (printf "#%s" $url.Fragment) "" -}}
+    {{- $dest = printf "%s%s%s" .RelPermalink $query $fragment -}}
+  {{- else -}}
+    {{- $hasBasePrefix := and (ne site.Home.RelPermalink "/") (hasPrefix $dest site.Home.RelPermalink) -}}
+    {{- if not $hasBasePrefix -}}
+      {{- $dest = (relURL (strings.TrimPrefix "/" $dest)) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- with . -}}
+<a href="{{ $dest | safeURL }}"
+   {{- with .Title -}}title="{{ . }}"{{- end -}}
+   {{- if $isExternal -}}target="_blank" rel="noopener"{{- end -}}
+>
+  {{- .Text | safeHTML -}}
+  {{- if and .Page.Site.Params.externalLinkDecoration $isExternal -}}
+    {{- partial "utils/icon.html" (dict "name" "arrow-up-right" "attributes" `class="hx:inline hx:rtl:rotate-270 hx:align-baseline" height="1em" aria-hidden="true"`) -}}
+  {{- end -}}
+</a>
+{{- end -}}
