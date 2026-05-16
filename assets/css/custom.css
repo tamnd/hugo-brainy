@@ -128,13 +128,20 @@ body {
 .brain-sidebar {
   display: flex;
   flex-direction: column;
-  width: var(--sidebar-w);
   flex-shrink: 0;
-  position: sticky;
-  top: 3.5rem;
-  align-self: flex-start;
-  height: calc(100vh - 3.5rem);
   background-color: var(--bg);
+}
+
+/* Desktop only: give the sidebar its fixed width and sticky positioning.
+   On mobile, hextra's sidebar.css takes over with position:fixed + width:100%. */
+@media (min-width: 48rem) {
+  .brain-sidebar {
+    width: var(--sidebar-w);
+    position: sticky;
+    top: 3.5rem;
+    align-self: flex-start;
+    height: calc(100vh - 3.5rem);
+  }
 }
 
 .brain-sidebar__scroll {

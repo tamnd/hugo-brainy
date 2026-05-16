@@ -1,4 +1,5 @@
 {{ define "main" }}
+{{ partial "sidebar.html" (dict "context" . "disableSidebar" true) }}
 {{ if eq .Kind "taxonomy" }}
   {{- $totalPages := 0 -}}
   {{- range .Data.Terms -}}{{- $totalPages = add $totalPages .Count -}}{{- end -}}
