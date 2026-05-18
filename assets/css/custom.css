@@ -126,8 +126,6 @@ body {
 /* ===== Sidebar (overridden template uses these classes) =================== */
 
 .brain-sidebar {
-  display: flex;
-  flex-direction: column;
   flex-shrink: 0;
   background-color: var(--bg);
 }
